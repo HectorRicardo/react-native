@@ -31,6 +31,7 @@ const PERMISSION_REQUEST_RESULT = Object.freeze({
   GRANTED: 'granted',
   DENIED: 'denied',
   NEVER_ASK_AGAIN: 'never_ask_again',
+  RATIONALE_ABORTED: 'rationale_aborted',
 });
 
 const PERMISSIONS = Object.freeze({
@@ -105,6 +106,7 @@ class PermissionsAndroid {
     DENIED: $TEMPORARY$string<'denied'>,
     GRANTED: $TEMPORARY$string<'granted'>,
     NEVER_ASK_AGAIN: $TEMPORARY$string<'never_ask_again'>,
+    RATIONALE_ABORTED: $TEMPORARY$string<'rationale_aborted'>,
   |} = PERMISSION_REQUEST_RESULT;
 
   /**
@@ -196,7 +198,7 @@ class PermissionsAndroid {
    */
   async request(
     permission: PermissionType,
-    rationale?: Rationale,
+    rationaleGetter?: () => Rationale,
   ): Promise<PermissionStatus> {
     if (Platform.OS !== 'android') {
       console.warn(
@@ -210,7 +212,7 @@ class PermissionsAndroid {
       'PermissionsAndroid is not installed correctly.',
     );
 
-    if (rationale) {
+    if (rationaleGetter) {
       const shouldShowRationale = await NativePermissionsAndroid.shouldShowRequestPermissionRationale(
         permission,
       );
@@ -218,7 +220,7 @@ class PermissionsAndroid {
       if (shouldShowRationale && !!NativeDialogManagerAndroid) {
         return new Promise((resolve, reject) => {
           const options = {
-            ...rationale,
+            ...rationaleGetter(),
           };
           NativeDialogManagerAndroid.showAlert(
             /* $FlowFixMe[incompatible-exact] (>=0.111.0 site=react_native_fb)
@@ -227,8 +229,14 @@ class PermissionsAndroid {
              */
             options,
             () => reject(new Error('Error showing rationale')),
-            () =>
-              resolve(NativePermissionsAndroid.requestPermission(permission)),
+            (action, buttonKey) => {
+              const {buttonClicked, buttonPositive} = NativeDialogManagerAndroid.getConstants();
+              if (action === buttonClicked && buttonKey === buttonPositive) {
+                resolve(NativePermissionsAndroid.requestPermission(permission));
+              } else {
+                resolve(this.RESULTS.RATIONALE_ABORTED);
+              }
+            },
           );
         });
       }
