@@ -52,7 +52,7 @@ executors:
   reactnativeios:
     <<: *defaults
     macos:
-      xcode: &_XCODE_VERSION "12.5.0"
+      xcode: &_XCODE_VERSION "13.0.0"
 
 # -------------------------
 #        COMMANDS
@@ -883,7 +883,7 @@ workflows:
   nightly:
     triggers:
       - schedule:
-          cron: "0 0 * * *"
+          cron: "0 20 * * *"
           filters:
             branches:
               only:
